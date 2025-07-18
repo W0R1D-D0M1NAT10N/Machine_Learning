@@ -30,53 +30,62 @@ class AirfoilDataset(Dataset):
             "cl": self.cls[idx]
         }
 
-# write a new python script that calls xfoil, provide file name, and alfa (use aseq command in xfoil). automate the process just now with python that eventually gets cl, 
-# and all the cl gets fed for the training dataset (expect output)
+# Load training data
+csv_path = r"C:\Users\alexa\airfoil_data.csv"
+# Load training data
+csv_path = r"C:\Users\alexa\airfoil_data.csv"
+df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0, recognizing the first row as header
 
-# basically preparing the large dataset for the code
+# Rename 'file_path' to 'image_path' for consistency
+df.rename(columns={'file_path': 'image_path'}, inplace=True)
 
-
-#df = pd.read_csv("training_data.txt")  # Make sure this file exists and has the right columns
-#
-#X_images = np.load("images.npy")   # (N, H, W) numpy array
-#X_aoa = df["aoa"].values           # (N,) numpy array or list
-#y_cl = df["cl"].values    
-
-# Load training data (space-separated, no header)
-df = pd.read_csv("training_data.txt", header=None, sep=',', names=["image_path", "aoa", "cl"])
+# Force aoa and cl to numeric (handles any stray non-numeric values)
+df['aoa'] = pd.to_numeric(df['aoa'], errors='coerce')
+df['cl'] = pd.to_numeric(df['cl'], errors='coerce')
+df.dropna(subset=['aoa', 'cl'], inplace=True)  # Drop any rows with invalid numeric values
 
 # Load and stack images
-images_file_path = 'C:\\Users\\alexa\\Downloads\\images\\images'
-+ "/images/"
-#add actual path look up how to do this 
+images_file_path = r"C:\Users\alexa\Documents\ML\airfoil_images\images"
 image_arrays = []
-for path in df["image_path"]:
+valid_indices = []  # Track valid rows to filter df later
+
+for idx, path in enumerate(df["image_path"]):
     print("Processing image file: ", path)
-    if(len(path)) > 20:
-        print("namelength > 20, skip...") #filters out long file names (cuz xfoil is unc)
+    if len(path) > 20:
+        print("Name length > 20, skipping...")
         continue
-    if not os.path.exists(os.path.join(images_file_path, path)) :
-        print(path," does not exist, skip...")
+    
+    # Assume images are named like '2032c.png' (replace '.dat' with '.png'; adjust if extension differs)
+    image_filename = path.replace('.dat', '.png')
+    full_image_path = os.path.join(images_file_path, image_filename)
+    
+    if not os.path.exists(full_image_path):
+        print(image_filename, " does not exist, skipping...")
         continue
-    img = Image.open(os.path.join(images_file_path, path)).convert('L')  # Convert to grayscale
-    img_array = np.array(img)           # Shape (H, W)
+    
+    img = Image.open(full_image_path).convert('L')  # Convert to grayscale
+    img_array = np.array(img)                       # Shape (H, W)
     image_arrays.append(img_array)
+    valid_indices.append(idx)
 
+# Filter df to only valid rows
+df_filtered = df.iloc[valid_indices].reset_index(drop=True)
+
+# Stack images and extract features/labels
+if len(image_arrays) == 0:
+    raise ValueError("No valid images found. Check paths and filenames.")
 X_images = np.stack(image_arrays)  # Shape (N, H, W)
-X_aoa = df["aoa"].values           # Shape (N,)
-y_cl = df["cl"].values             # Shape (N,)
-#take training data
+X_aoa = df_filtered["aoa"].values  # Shape (N,)
+y_cl = df_filtered["cl"].values    # Shape (N,)
+X_aoa = df_filtered["aoa"].values  # Shape (N,)
+y_cl = df_filtered["cl"].values    # Shape (N,)
 
-
-# Normalize AoA (critical enhancement)
+# Normalize AoA
 aoa_scaler = StandardScaler()
 X_aoa_normalized = aoa_scaler.fit_transform(X_aoa.reshape(-1, 1))
 
-# Split with GroupKFold to prevent leakage (enhancement)
-
-groups = df["image_path"].values  # Ensure same airfoil isn't in both sets
-# print(groups)
-# print(groups.size)
+# Split with GroupKFold to prevent leakage
+groups = df_filtered["image_path"].values
 gkf = GroupKFold(n_splits=5)
 train_idx, val_idx = next(gkf.split(X_images, y_cl, groups))
 train_dataset = AirfoilDataset(X_images[train_idx], X_aoa_normalized[train_idx], y_cl[train_idx])
@@ -103,7 +112,7 @@ class AirfoilCNN(nn.Module):
         
         self.conv_output_size = self._get_conv_output_size(input_height, input_width)
 
-        # AoA branch, this is a 1 -> 16 linear mapping from AoA input
+        # AoA branch
         self.aoa_fc = nn.Sequential(
             nn.Linear(1, 16),
             nn.ReLU()
@@ -118,6 +127,7 @@ class AirfoilCNN(nn.Module):
             nn.ReLU(),
             nn.Linear(32, 1)
         )
+    
     def _get_conv_output_size(self, h, w):
         with torch.no_grad():
             dummy_input = torch.zeros(1,1,h,w)
@@ -140,7 +150,7 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 criterion = nn.MSELoss()
 scaler = amp.GradScaler()  # Mixed-precision training
 
-# Physics-guided loss (critical enhancement)
+# Physics-guided loss
 def physics_loss(outputs, aoas):
     aoas_rad = aoas * (15 * np.pi / 180)  # Scale AoA to ~radians
     thin_airfoil_cl = 2 * np.pi * aoas_rad
@@ -214,4 +224,3 @@ torch.save(model.state_dict(), "airfoil_cnn.pth")
 # Print scaler parameters for inference
 print("AoA scaler mean:", aoa_scaler.mean_)
 print("AoA scaler scale:", aoa_scaler.scale_)
-

@@ -31,7 +31,7 @@ class SimpleCNN(nn.Module):
 model     = SimpleCNN()
 
 
-image_path = "C:\\Users\\alexa\\Pictures\\conv_image.png"
+image_path = r"C:\Users\alexa\Pictures\seven_aryan.png"
 
 pil_image = Image.open(image_path).convert("L")
 invImage  = ImageOps.invert(pil_image)
