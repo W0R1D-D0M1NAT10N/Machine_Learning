@@ -1,6 +1,7 @@
 import os
 import subprocess
 import pandas as pd
+import numpy as np
 
 # Define directories
 airfoils_dir = 'C:\\Users\\alexa\\Downloads\\coord_seligFmt\\coord_seligFmt'
@@ -80,12 +81,11 @@ for dat_filename in os.listdir(airfoils_dir):
         os.remove(polar_path)
     aoa = 0.0
     stride = 0.25
-    max_aoa = 30.0  # Safety cap
     conv = True
-    while aoa <= max_aoa and conv:
+    for i in range(60):
         conv = run_xfoil(dat_path, polar_path, aoa)
-        if conv:
-            aoa += stride
+        
+        aoa+=stride
     # Parse polar after loop
     if os.path.exists(polar_path):
         try:
