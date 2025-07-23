@@ -45,8 +45,8 @@ def run_xfoil_worker(args):
         'VPAR',
         'N 9.0',  # Ncrit=9 for better transition at Re=1e6
         '',
-        'ITER 400',  # Higher for tough cases
-        'VACC 0.01',
+        'ITER 2000',  # Higher for tough cases
+        'VACC 0.00001',
         f'VISC {re}',
         f'MACH {mach}',
         'PACC',

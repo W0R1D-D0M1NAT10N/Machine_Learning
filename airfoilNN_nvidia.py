@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, random_split
+import torch.optim.lr_scheduler as lr_scheduler
+
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
@@ -98,6 +100,14 @@ train_idx, val_idx = next(gkf.split(X_images, y_cl, groups))
 train_dataset = AirfoilDataset(X_images[train_idx], X_aoa_normalized[train_idx], y_cl[train_idx])
 val_dataset = AirfoilDataset(X_images[val_idx], X_aoa_normalized[val_idx], y_cl[val_idx])
 
+# Save the train dataset and val dataset image file names in two csv files
+train_image_paths = df_filtered["image_path"].iloc[train_idx].tolist()
+val_image_paths = df_filtered["image_path"].iloc[val_idx].tolist()
+train_df = pd.DataFrame({"image_path": train_image_paths})
+val_df = pd.DataFrame({"image_path": val_image_paths})
+train_df.to_csv("train_image_paths.csv", index=False)
+val_df.to_csv("val_image_paths.csv", index=False)
+
 # --------------------
 # 2. Model Architecture
 # --------------------
@@ -155,6 +165,7 @@ print(f"Using device: {device}")  # Debug to confirm GPU
 image_height, image_width = X_images.shape[1], X_images.shape[2]
 model = AirfoilCNN(image_height, image_width).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 criterion = nn.MSELoss()
 scaler = amp.GradScaler()  # Mixed-precision training
 
@@ -189,7 +200,11 @@ for epoch in range(100):
         scaler.step(optimizer)
         scaler.update()
         train_loss += loss.item()
-    
+
+    # Adjust learning rate
+    print(f"Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+    scheduler.step()
+
     # Validation
     model.eval()
     val_loss = 0.0
