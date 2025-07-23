@@ -103,10 +103,19 @@ val_dataset = AirfoilDataset(X_images[val_idx], X_aoa_normalized[val_idx], y_cl[
 # Save the train dataset and val dataset image file names in two csv files
 train_image_paths = df_filtered["image_path"].iloc[train_idx].drop_duplicates().tolist()
 val_image_paths = df_filtered["image_path"].iloc[val_idx].drop_duplicates().tolist()
+
+# Check for overlap between train and validation image paths
+train_set = set(train_image_paths)
+val_set = set(val_image_paths)
+overlap = train_set & val_set
+if overlap:
+    raise ValueError(f"Overlap detected between train and validation image paths: {overlap}")
+
 train_df = pd.DataFrame({"image_path": train_image_paths})
 val_df = pd.DataFrame({"image_path": val_image_paths})
 train_df.to_csv("train_image_paths.csv", index=False)
 val_df.to_csv("val_image_paths.csv", index=False)
+
 
 # --------------------
 # 2. Model Architecture
