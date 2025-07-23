@@ -101,8 +101,8 @@ train_dataset = AirfoilDataset(X_images[train_idx], X_aoa_normalized[train_idx],
 val_dataset = AirfoilDataset(X_images[val_idx], X_aoa_normalized[val_idx], y_cl[val_idx])
 
 # Save the train dataset and val dataset image file names in two csv files
-train_image_paths = df_filtered["image_path"].iloc[train_idx].tolist()
-val_image_paths = df_filtered["image_path"].iloc[val_idx].tolist()
+train_image_paths = df_filtered["image_path"].iloc[train_idx].drop_duplicates().tolist()
+val_image_paths = df_filtered["image_path"].iloc[val_idx].drop_duplicates().tolist()
 train_df = pd.DataFrame({"image_path": train_image_paths})
 val_df = pd.DataFrame({"image_path": val_image_paths})
 train_df.to_csv("train_image_paths.csv", index=False)
