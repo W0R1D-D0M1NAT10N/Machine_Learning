@@ -1,103 +1,123 @@
 import os
 import subprocess
 import pandas as pd
-import numpy as np
+from tqdm import tqdm
+import multiprocessing  # For parallel processing
 
-# Define directories
+# Directories
 airfoils_dir = 'C:\\Users\\alexa\\Downloads\\coord_seligFmt\\coord_seligFmt'
 polars_dir = r'C:\Users\alexa\Downloads\polar'
+logs_dir = r'C:\Users\alexa\Downloads\polar_logs'
 os.makedirs(polars_dir, exist_ok=True)
+os.makedirs(logs_dir, exist_ok=True)
 
 re = 1e6 
 mach = 0.1
 
-def run_xfoil(dat_path, polar_path, aoa):
+# Checkpoint setup
+checkpoint_file = 'airfoil_processing_log.csv'
+if os.path.exists(checkpoint_file):
+    df_checkpoint = pd.read_csv(checkpoint_file)
+else:
+    df_checkpoint = pd.DataFrame(columns=['airfoil', 'status', 'polar_path', 'log_path', 'timestamp'])
+
+def run_xfoil_worker(args):
+    dat_filename, airfoils_dir, polars_dir, logs_dir = args
+    airfoil_name = dat_filename[:-4]
+    dat_path = dat_filename  # Relative, since cwd=airfoils_dir
+    polar_path = os.path.join(polars_dir, f"{airfoil_name}_polar.txt").replace('\\', '/')
+    log_path = os.path.join(logs_dir, f"{airfoil_name}_log.txt").replace('\\', '/')
+    
+    print(f"Running XFOIL for {dat_filename} with LOAD {dat_path} and polar {polar_path}")
+    
+    aoa_start = 0.0
+    aoa_end = 12.0  # Reduced to avoid stall hangs; adjust if needed
+    stride = 0.25
+    
     commands = [
+        'PLOP',
+        'G F',
+        '',
         f'LOAD {dat_path}',
         'PANE',
-        'PLOP',  # Enter plotting options
-        'G F',   # Set graphics enable to false (suppress plots)
-        '',      # Blank line to exit PLOP menu
+        'INIT',  # Re-init for convergence
         'OPER',
-        f'ITER 10000',  # Lowered to speed up failures
-        f'VISC {re}', 
+        'VPAR',
+        'N 9.0',  # Ncrit=9 for better transition at Re=1e6
+        '',
+        'ITER 400',  # Higher for tough cases
+        'VACC 0.01',
+        f'VISC {re}',
         f'MACH {mach}',
         'PACC',
         polar_path,
-        '', 
-        f'ALFA {aoa}',
         '',
+        f'ASEQ {aoa_start} {aoa_end} {stride}',
         '',
-        'QUIT'
-        ]
-    # Get old file size before running
-    old_size = os.path.getsize(polar_path) if os.path.exists(polar_path) else 0
-
+        'PACC',  # Off
+        '', '', 'QUIT', ''
+    ]
+    
     try:
-        process = subprocess.Popen(['xfoil'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        for cmd in commands:
-            process.stdin.write(cmd + '\n')
-        process.stdin.close()
-        
-        # Add timeout to prevent hangs
-        try:
-            output, error = process.communicate(timeout=30)  # 30-second timeout
-        except subprocess.TimeoutExpired:
-            process.kill()
-            output, error = process.communicate()  # Clean up
-            print(f"Timeout occurred for AoA {aoa} - assuming convergence failed {dat_path}")
-            return False
-        
-        #print(output)
-        
-        if process.returncode != 0 or error:
-            print(f"Error running XFOIL for {dat_path}:")
-            print(error)
-            print(output)
-            return False
-        
-        # Check if new data was added (file size increased)
-        new_size = os.path.getsize(polar_path)
-        if new_size > old_size:
-            print(f"Generated polar point for AoA {aoa}")
-            return True
-        else:
-            print(f"No new data added for AoA {aoa}, assuming convergence failed for {dat_path}")
+        with open(log_path, 'w') as log_file:
+            process = subprocess.Popen(['xfoil'], stdin=subprocess.PIPE, stdout=log_file, stderr=subprocess.STDOUT, text=True, cwd=airfoils_dir)
+            for cmd in commands:
+                process.stdin.write(cmd + '\n')
+            process.stdin.close()
+            
+            process.wait(timeout=600)
+            
+            if process.returncode != 0:
+                return False
+            
+            if os.path.exists(polar_path) and os.path.getsize(polar_path) > 500:
+                return True
             return False
     
-    except FileNotFoundError:
-        print("XFOIL not found. Make sure it's installed and in your PATH.")
+    except subprocess.TimeoutExpired:
+        process.kill()
+        return False  # Partial may exist
+    except Exception as e:
+        print(f"Error for {dat_filename}: {e}")
         return False
 
-all_rows = []
+if __name__ == '__main__':  # Windows multiprocessing guard—prevents recursive imports!
+    processed_airfoils = set(df_checkpoint[df_checkpoint['status'] == 'success']['airfoil']) if 'df_checkpoint' in globals() else set()
 
-for dat_filename in os.listdir(airfoils_dir):
-    if not dat_filename.endswith('.dat'):
-        continue
-    airfoil_name = dat_filename[:-4]
-    dat_path = os.path.join(airfoils_dir, dat_filename)
-    polar_path = os.path.join(polars_dir, f"{airfoil_name}_polar.txt")
-    if os.path.exists(polar_path):
-        os.remove(polar_path)
-    aoa = 0.0
-    stride = 0.25
-    conv = True
-    for i in range(60):
-        conv = run_xfoil(dat_path, polar_path, aoa)
+    all_rows = []
+    airfoil_list = [f for f in os.listdir(airfoils_dir) if f.endswith('.dat')]
+
+    # Parallel processing
+    with multiprocessing.Pool(4) as pool:  # 4 cores; adjust based on your CPU
+        args_list = [(f, airfoils_dir, polars_dir, logs_dir) for f in airfoil_list if f not in processed_airfoils]
+        successes = list(tqdm(pool.imap(run_xfoil_worker, args_list), total=len(args_list), desc="Processing Airfoils (Parallel)"))
+
+    for i, dat_filename in enumerate([f for f in airfoil_list if f not in processed_airfoils]):
+        success = successes[i]
+        status = 'success' if success else 'failed'
+        polar_path = os.path.join(polars_dir, f"{dat_filename[:-4]}_polar.txt")
+        log_path = os.path.join(logs_dir, f"{dat_filename[:-4]}_log.txt")
+        new_row = pd.DataFrame({
+            'airfoil': [dat_filename],
+            'status': [status],
+            'polar_path': [polar_path],
+            'log_path': [log_path],
+            'timestamp': [pd.Timestamp.now()]
+        })
+        df_checkpoint = pd.concat([df_checkpoint, new_row], ignore_index=True)
+        df_checkpoint.to_csv(checkpoint_file, index=False)
         
-        aoa+=stride
-    # Parse polar after loop
-    if os.path.exists(polar_path):
-        try:
-            df_polar = pd.read_csv(polar_path, skiprows=12, sep=r'\s+', names=['alpha', 'CL', 'CD', 'CDp', 'CM', 'Top_Xtr', 'Bot_Xtr'])
-            for _, row in df_polar.iterrows():
-                all_rows.append([dat_filename, row['alpha'], row['CL']])
-        except Exception as e:
-            print(f"Error parsing {polar_path}: {e}")
+        if os.path.exists(polar_path) and os.path.getsize(polar_path) > 500:
+            try:
+                df_polar = pd.read_csv(polar_path, skiprows=12, sep=r'\s+', names=['alpha', 'CL', 'CD', 'CDp', 'CM', 'Top_Xtr', 'Bot_Xtr'])
+                for _, row in df_polar.iterrows():
+                    all_rows.append([dat_filename, row['alpha'], row['CL']])
+            except Exception as e:
+                print(f"Parse error for {polar_path}: {e}")
 
-if all_rows:
-    df = pd.DataFrame(all_rows, columns=['file_path', 'aoa', 'cl'])
-    df.to_csv('airfoil_data.csv', index=False)
-    print("Saved data to airfoil_data.csv")
-else:
-    print("No data collected.")
+    if all_rows:
+        df = pd.DataFrame(all_rows, columns=['file_path', 'aoa', 'cl'])
+        df.to_csv('airfoil_data.csv', index=False)
+        print("Saved full dataset to airfoil_data.csv")
+    else:
+        print("No data collected—check logs/checkpoint for fails.")
