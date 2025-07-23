@@ -184,7 +184,8 @@ val_loader = DataLoader(val_dataset, batch_size=32)
 for epoch in range(100):
     model.train()
     train_loss = 0.0
-    for batch in tqdm(train_loader, desc=f"Epoch {epoch+1} Training"):
+    #for batch in tqdm(train_loader, desc=f"Epoch {epoch+1} Training"):
+    for batch in train_loader:
         images = batch["image"].to(device)
         aoas = batch["aoa"].to(device)
         cls = batch["cl"].unsqueeze(1).to(device)
@@ -209,7 +210,8 @@ for epoch in range(100):
     model.eval()
     val_loss = 0.0
     with torch.no_grad():
-        for batch in tqdm(val_loader, desc=f"Epoch {epoch+1} Validation"):
+        #for batch in tqdm(val_loader, desc=f"Epoch {epoch+1} Validation"):
+        for batch in val_loader:
             images = batch["image"].to(device)
             aoas = batch["aoa"].to(device)
             cls = batch["cl"].unsqueeze(1).to(device)
