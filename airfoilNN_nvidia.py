@@ -33,7 +33,7 @@ class AirfoilDataset(Dataset):
         }
 
 # Load training data
-csv_path = r"C:\Users\alexa\airfoil_data.csv"  # Update if using a different name
+csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"   # Update if using a different name
 df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0
 
 # Rename 'file_path' to 'image_path' for consistency
@@ -50,7 +50,7 @@ df = df.sort_values(['image_path', 'aoa'])
 df = df.reset_index(drop=True)  # Reset index to avoid out-of-bounds errors
 
 # Load and map unique images
-images_file_path = r"C:\Users\alexa\Documents\ML\airfoil_images\images"
+images_file_path = r"C:\Users\Owner\airfoil_images\images"
 unique_paths = df["image_path"].unique()
 path_to_img = {}
 valid_indices = []
@@ -67,7 +67,7 @@ for path in unique_paths:
         print(f"{image_filename} does not exist, skipping...")
         continue
     
-    img = Image.open(full_image_path).convert('L').resize((256, 256))  # Resize to save memory
+    img = Image.open(full_image_path).convert('L').resize((100, 30))  # Resize to save memory
     path_to_img[path] = np.array(img)
     
     # Add indices for this path
