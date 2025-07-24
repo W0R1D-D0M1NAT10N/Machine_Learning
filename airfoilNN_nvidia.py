@@ -69,7 +69,7 @@ for path in unique_paths:
         print(f"{image_filename} does not exist, skipping...")
         continue
     
-    img = Image.open(full_image_path).convert('L').resize((100, 30))  # Resize to save memory
+    img = Image.open(full_image_path).convert('L').resize((250, 75))  # Resize to save memory
     path_to_img[path] = np.array(img)
     
     # Add indices for this path
@@ -100,7 +100,10 @@ train_idx, val_idx = next(gkf.split(X_images, y_cl, groups))
 train_dataset = AirfoilDataset(X_images[train_idx], X_aoa_normalized[train_idx], y_cl[train_idx])
 val_dataset = AirfoilDataset(X_images[val_idx], X_aoa_normalized[val_idx], y_cl[val_idx])
 
-# Save the train dataset and val dataset image file names in two csv files
+# Save the train dataset and val dataset image file names in two 
+# 
+# 
+# csv files
 train_image_paths = df_filtered["image_path"].iloc[train_idx].drop_duplicates().tolist()
 val_image_paths = df_filtered["image_path"].iloc[val_idx].drop_duplicates().tolist()
 
@@ -173,8 +176,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")  # Debug to confirm GPU
 image_height, image_width = X_images.shape[1], X_images.shape[2]
 model = AirfoilCNN(image_height, image_width).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+optimizer = optim.Adam(model.parameters(), lr=1.5e-3)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.995)
 criterion = nn.MSELoss()
 scaler = amp.GradScaler()  # Mixed-precision training
 
@@ -187,10 +190,10 @@ def physics_loss(outputs, aoas):
 # --------------------
 # 4. Training Loop
 # --------------------
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=64)
 
-for epoch in range(100):
+for epoch in range(1000):
     model.train()
     train_loss = 0.0
     #for batch in tqdm(train_loader, desc=f"Epoch {epoch+1} Training"):
@@ -204,7 +207,7 @@ for epoch in range(100):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.1 * p_loss  # Weighted physics loss
+            loss = data_loss + 0.4 * p_loss  # Weighted physics loss
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -228,7 +231,7 @@ for epoch in range(100):
             val_loss += criterion(outputs, cls).item()
     
     print(f"Epoch {epoch+1}: Train Loss = {train_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
-
+torch.save(model.state_dict(), "airfoil_cnn.pth")
 # --------------------
 # 5. Visualization & Inference
 # --------------------
@@ -253,7 +256,7 @@ def plot_predictions(model, dataloader, device, n_samples=5):
 plot_predictions(model, val_loader, device)
 
 # Save model
-torch.save(model.state_dict(), "airfoil_cnn.pth")
+
 
 # Print scaler parameters for inference
 print("AoA scaler mean:", aoa_scaler.mean_)
