@@ -259,7 +259,7 @@ for epoch in range(1000):
         train_loss += loss.item()
 
     # Adjust learning rate
-    print(f"Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+    # print(f"Learning rate: {scheduler.get_last_lr()[0]:.6f}")
     scheduler.step()
 
     # Validation
