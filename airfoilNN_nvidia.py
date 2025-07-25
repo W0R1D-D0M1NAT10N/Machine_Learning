@@ -45,6 +45,7 @@ torch.backends.cudnn.benchmark = False
 
 # Load training data
 csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"   # Update if using a different name
+csv_path = r"airfoil_data_clean.csv"   # Update if using a different name
 df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0
 
 # Rename 'file_path' to 'image_path' for consistency
@@ -62,6 +63,7 @@ df = df.reset_index(drop=True)  # Reset index to avoid out-of-bounds errors
 
 # Load and map unique images
 images_file_path = r"C:\Users\Owner\airfoil_images\images"
+images_file_path = r"images"
 unique_paths = df["image_path"].unique()
 path_to_img = {}
 valid_indices = []
@@ -128,9 +130,9 @@ groups_filtered = df_filtered["image_path"].values[filtered_indices]
 
 # Split with GroupKFold to prevent leakage
 gkf = GroupKFold(n_splits=5)
-train_idx, val_idx = next(gkf.split(X_images_filtered, y_cl_filtered, groups_filtered))
-train_dataset = AirfoilDataset(X_images_filtered[train_idx], X_aoa_normalized_filtered[train_idx], y_cl_filtered[train_idx])
-val_dataset = AirfoilDataset(X_images_filtered[val_idx], X_aoa_normalized_filtered[val_idx], y_cl_filtered[val_idx])
+train_idx, val_idx = next(gkf.split(X_images_filtered, Y_cl_filtered, groups_filtered))
+train_dataset = AirfoilDataset(X_images_filtered[train_idx], X_aoa_normalized_filtered[train_idx], Y_cl_filtered[train_idx])
+val_dataset = AirfoilDataset(X_images_filtered[val_idx], X_aoa_normalized_filtered[val_idx], Y_cl_filtered[val_idx])
 
 # Save the train dataset and val dataset image file names in two 
 # 
@@ -239,7 +241,7 @@ for epoch in range(1000):
         cls = batch["cl"].unsqueeze(1).to(device)
         
         optimizer.zero_grad()
-        with amp.autocast():  # Mixed precision
+        with torch.autocast(device_type=device.type):  # Mixed precision
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
