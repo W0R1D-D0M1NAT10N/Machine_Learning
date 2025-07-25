@@ -255,8 +255,6 @@ def plot_predictions(model, dataloader, device, n_samples=5):
 
 plot_predictions(model, val_loader, device)
 
-# Save model
-
 
 # Print scaler parameters for inference
 print("AoA scaler mean:", aoa_scaler.mean_)
