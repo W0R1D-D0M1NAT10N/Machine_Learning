@@ -75,8 +75,8 @@ for path in unique_paths:
     # Add indices for this path
     valid_indices.extend(df[df['image_path'] == path].index.tolist())
 
-# Filter df to valid rows
-df_filtered = df.iloc[valid_indices].reset_index(drop=True)
+# Filter df to valid rows and drop duplicates
+df_filtered = df.iloc[valid_indices].drop_duplicates().reset_index(drop=True)
 
 # Create list of images by referencing uniques
 image_arrays = [path_to_img[path] for path in df_filtered['image_path']]
@@ -93,12 +93,32 @@ y_cl = df_filtered["cl"].values
 aoa_scaler = StandardScaler()
 X_aoa_normalized = aoa_scaler.fit_transform(X_aoa.reshape(-1, 1))
 
+# Identify uniq groups
+unique_groups = np.unique(df_filtered["image_path"].values)
+max_group_size = 1000
+filtered_indices = []
+
+# Limit group to 1000 samples
+for group in unique_groups:
+    group_indices = np.where(df_filtered["image_path"].values == group)[0]
+    if(len(group_indices) > max_group_size):
+        sampled_indices = np.random.choice(group_indices, size=max_group_size, replace=False)
+    else:
+        sampled_indices = group_indices
+    filtered_indices.extend(sampled_indices)
+
+# Create filtered dataset
+filtered_indices = np.array(filtered_indices)
+X_images_filtered = X_images[filtered_indices]
+X_aoa_normalized_filtered = X_aoa_normalized[filtered_indices]
+Y_cl_filtered = y_cl[filtered_indices]
+groups_filtered = df_filtered["image_path"].values[filtered_indices]
+
 # Split with GroupKFold to prevent leakage
-groups = df_filtered["image_path"].values
 gkf = GroupKFold(n_splits=5)
-train_idx, val_idx = next(gkf.split(X_images, y_cl, groups))
-train_dataset = AirfoilDataset(X_images[train_idx], X_aoa_normalized[train_idx], y_cl[train_idx])
-val_dataset = AirfoilDataset(X_images[val_idx], X_aoa_normalized[val_idx], y_cl[val_idx])
+train_idx, val_idx = next(gkf.split(X_images_filtered, y_cl_filtered, groups_filtered))
+train_dataset = AirfoilDataset(X_images_filtered[train_idx], X_aoa_normalized_filtered[train_idx], y_cl_filtered[train_idx])
+val_dataset = AirfoilDataset(X_images_filtered[val_idx], X_aoa_normalized_filtered[val_idx], y_cl_filtered[val_idx])
 
 # Save the train dataset and val dataset image file names in two 
 # 
@@ -190,8 +210,8 @@ def physics_loss(outputs, aoas):
 # --------------------
 # 4. Training Loop
 # --------------------
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=64)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=32)
 
 for epoch in range(1000):
     model.train()
