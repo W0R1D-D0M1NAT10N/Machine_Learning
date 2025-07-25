@@ -14,6 +14,7 @@ from PIL import Image
 import os
 import sys  # For memory debug
 from tqdm import tqdm  # For progress bars
+import random
 
 # --------------------
 # 1. Data Preparation
@@ -33,6 +34,14 @@ class AirfoilDataset(Dataset):
             "aoa": self.aoas[idx],
             "cl": self.cls[idx]
         }
+
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(42)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 # Load training data
 csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"   # Update if using a different name
@@ -69,7 +78,7 @@ for path in unique_paths:
         print(f"{image_filename} does not exist, skipping...")
         continue
     
-    img = Image.open(full_image_path).convert('L').resize((250, 75))  # Resize to save memory
+    img = Image.open(full_image_path).convert('L').resize((100, 30))  # Resize to save memory
     path_to_img[path] = np.array(img)
     
     # Add indices for this path
@@ -79,7 +88,10 @@ for path in unique_paths:
 df_filtered = df.iloc[valid_indices].drop_duplicates().reset_index(drop=True)
 
 # Create list of images by referencing uniques
-image_arrays = [path_to_img[path] for path in df_filtered['image_path']]
+valid_image_paths = [path for path in df_filtered['image_path'] if path in path_to_img]
+image_arrays = [path_to_img[path] for path in valid_image_paths]
+df_filtered = df_filtered[df_filtered['image_path'].isin(valid_image_paths)].reset_index(drop=True)
+
 X_images = np.stack(image_arrays)
 
 # Memory debug: Print size
@@ -203,9 +215,13 @@ scaler = amp.GradScaler()  # Mixed-precision training
 
 # Physics-guided loss
 def physics_loss(outputs, aoas):
-    aoas_rad = aoas * (15 * np.pi / 180)  # Scale AoA to ~radians
+    # aoas: (batch_size, 1) tensor, normalized
+    aoas_cpu = aoas.detach().cpu().numpy().reshape(-1, 1)
+    aoas_deg = aoa_scaler.inverse_transform(aoas_cpu)  # shape (batch_size, 1)
+    aoas_rad = aoas_deg * np.pi / 180  # convert to radians
+    aoas_rad = torch.tensor(aoas_rad, dtype=outputs.dtype, device=outputs.device)
     thin_airfoil_cl = 2 * np.pi * aoas_rad
-    return torch.mean((outputs - thin_airfoil_cl)**2)
+    return torch.mean((outputs - thin_airfoil_cl) ** 2)
 
 # --------------------
 # 4. Training Loop
@@ -227,7 +243,7 @@ for epoch in range(1000):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.4 * p_loss  # Weighted physics loss
+            loss = data_loss + 0.1 * p_loss  # Weighted physics loss
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
