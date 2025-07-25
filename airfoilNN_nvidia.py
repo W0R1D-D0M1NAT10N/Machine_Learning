@@ -44,8 +44,10 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 # Load training data
-csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"   # Update if using a different name
-csv_path = r"airfoil_data_clean.csv"   # Update if using a different name
+if os.name == 'nt':  # Windows
+    csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"
+else:  # Linux/Mac
+    csv_path = r"airfoil_data_clean.csv"
 df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0
 
 # Rename 'file_path' to 'image_path' for consistency
@@ -61,9 +63,13 @@ df = df.drop_duplicates(subset=['image_path', 'aoa'])
 df = df.sort_values(['image_path', 'aoa'])
 df = df.reset_index(drop=True)  # Reset index to avoid out-of-bounds errors
 
+# Detect OS and set image path accordingly
+if os.name == 'nt':  # Windows
+    images_file_path = r"C:\Users\Owner\airfoil_images\images"
+else:  # Linux/Mac
+    images_file_path = "images"
+
 # Load and map unique images
-images_file_path = r"C:\Users\Owner\airfoil_images\images"
-images_file_path = r"images"
 unique_paths = df["image_path"].unique()
 path_to_img = {}
 valid_indices = []
