@@ -203,8 +203,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")  # Debug to confirm GPU
 image_height, image_width = X_images.shape[1], X_images.shape[2]
 model = AirfoilCNN(image_height, image_width).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1.5e-3)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.995)
+optimizer = optim.Adam(model.parameters(), lr=1e-3)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
 criterion = nn.MSELoss()
 scaler = amp.GradScaler()  # Mixed-precision training
 
@@ -224,7 +224,7 @@ def physics_loss(outputs, aoas):
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=32)
 
-for epoch in range(100):
+for epoch in range(20):
     model.train()
     train_loss = 0.0
     train_data_loss = 0.0  # New: Track pure data MSE
