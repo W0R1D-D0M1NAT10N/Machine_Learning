@@ -115,7 +115,7 @@ X_aoa_normalized = aoa_scaler.fit_transform(X_aoa.reshape(-1, 1))
 
 
 # Create filtered dataset
-filtered_indices = np.array(filtered_indices)
+filtered_indices = np.arange(len(df_filtered))  # Fix: Use all valid indices
 X_images_filtered = X_images[filtered_indices]
 X_aoa_normalized_filtered = X_aoa_normalized[filtered_indices]
 Y_cl_filtered = y_cl[filtered_indices]
@@ -227,6 +227,7 @@ val_loader = DataLoader(val_dataset, batch_size=32)
 for epoch in range(100):
     model.train()
     train_loss = 0.0
+    train_data_loss = 0.0  # New: Track pure data MSE
     #for batch in tqdm(train_loader, desc=f"Epoch {epoch+1} Training"):
     for batch in train_loader:
         images = batch["image"].to(device)
@@ -238,12 +239,13 @@ for epoch in range(100):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.1 * p_loss  # Weighted physics loss
+            loss = data_loss + 0.0 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
         train_loss += loss.item()
+        train_data_loss += data_loss.item()  # New: Accumulate pure MSE
 
     # Adjust learning rate
     # print(f"Learning rate: {scheduler.get_last_lr()[0]:.6f}")
@@ -261,7 +263,7 @@ for epoch in range(100):
             outputs = model(images, aoas)
             val_loss += criterion(outputs, cls).item()
     
-    print(f"Epoch {epoch+1}: Train Loss = {train_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
+    print(f"Epoch {epoch+1}: Train Loss (Total) = {train_loss/len(train_loader):.4f}, Train MSE (Data Only) = {train_data_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
 torch.save(model.state_dict(), "airfoil_cnn.pth")
 # --------------------
 # 5. Visualization & Inference
