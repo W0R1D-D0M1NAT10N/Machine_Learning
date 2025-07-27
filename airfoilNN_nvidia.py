@@ -44,10 +44,10 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 # Load training data
-if os.name == 'nt':  # Windows
-    csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"
-else:  # Linux/Mac
-    csv_path = r"airfoil_data_clean.csv"
+
+csv_path = r"C:\Users\Owner\Machine_Learning\airfoil_data_clean.csv"
+#else:  # Linux/Mac
+#    csv_path = r"airfoil_data_clean.csv"
 df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0
 
 # Rename 'file_path' to 'image_path' for consistency
@@ -86,7 +86,7 @@ for path in unique_paths:
         print(f"{image_filename} does not exist, skipping...")
         continue
     
-    img = Image.open(full_image_path).convert('L').resize((100, 30))  # Resize to save memory
+    img = Image.open(full_image_path).convert('L').resize((200, 60))  # Resize to save memory
     path_to_img[path] = np.array(img)
     
     # Add indices for this path
@@ -113,19 +113,6 @@ y_cl = df_filtered["cl"].values
 aoa_scaler = StandardScaler()
 X_aoa_normalized = aoa_scaler.fit_transform(X_aoa.reshape(-1, 1))
 
-# Identify uniq groups
-unique_groups = np.unique(df_filtered["image_path"].values)
-max_group_size = 1000
-filtered_indices = []
-
-# Limit group to 1000 samples
-for group in unique_groups:
-    group_indices = np.where(df_filtered["image_path"].values == group)[0]
-    if(len(group_indices) > max_group_size):
-        sampled_indices = np.random.choice(group_indices, size=max_group_size, replace=False)
-    else:
-        sampled_indices = group_indices
-    filtered_indices.extend(sampled_indices)
 
 # Create filtered dataset
 filtered_indices = np.array(filtered_indices)
@@ -237,7 +224,7 @@ def physics_loss(outputs, aoas):
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=32)
 
-for epoch in range(1000):
+for epoch in range(100):
     model.train()
     train_loss = 0.0
     #for batch in tqdm(train_loader, desc=f"Epoch {epoch+1} Training"):
