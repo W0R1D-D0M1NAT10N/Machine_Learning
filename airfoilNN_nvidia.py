@@ -35,11 +35,11 @@ class AirfoilDataset(Dataset):
             "cl": self.cls[idx]
         }
 
-random.seed(42)
-np.random.seed(42)
-torch.manual_seed(42)
+random.seed(48)
+np.random.seed(48)
+torch.manual_seed(48)
 if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(42)
+    torch.cuda.manual_seed_all(48)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
@@ -177,7 +177,7 @@ class AirfoilCNN(nn.Module):
         # Combined head
         self.head = nn.Sequential(
             nn.Linear(self.conv_output_size + 16, 64),
-            nn.Dropout(0.2),  # Enhancement: Regularization
+            nn.Dropout(0.4),  # Enhancement: Regularization
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
@@ -204,7 +204,7 @@ print(f"Using device: {device}")  # Debug to confirm GPU
 image_height, image_width = X_images.shape[1], X_images.shape[2]
 model = AirfoilCNN(image_height, image_width).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
 criterion = nn.MSELoss()
 scaler = amp.GradScaler()  # Mixed-precision training
 
@@ -239,7 +239,7 @@ for epoch in range(20):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.0 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
+            loss = data_loss + 0.1 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
