@@ -35,7 +35,7 @@ class AirfoilDataset(Dataset):
         }
 
 # Load training data
-csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"   # Update if using a different name
+csv_path = r"C:\Users\Owner\Machine_Learning\airfoil_data_clean.csv"   # Update if using a different name
 df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0
 
 # Rename 'file_path' to 'image_path' for consistency
@@ -69,7 +69,7 @@ for path in unique_paths:
         print(f"{image_filename} does not exist, skipping...")
         continue
 
-    img = Image.open(full_image_path).convert('L').resize((250, 75))  # Resize to save memory
+    img = Image.open(full_image_path).convert('L').resize((100, 30))  # Resize to save memory
     path_to_img[path] = np.array(img)
 
     # Add indices for this path
@@ -93,27 +93,6 @@ y_cl = df_filtered["cl"].values
 aoa_scaler = StandardScaler()
 X_aoa_normalized = aoa_scaler.fit_transform(X_aoa.reshape(-1, 1))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Split with GroupKFold to prevent leakage
 groups = df_filtered["image_path"].values
 gkf = GroupKFold(n_splits=5)
@@ -121,10 +100,7 @@ train_idx, val_idx = next(gkf.split(X_images, y_cl, groups))
 train_dataset = AirfoilDataset(X_images[train_idx], X_aoa_normalized[train_idx], y_cl[train_idx])
 val_dataset = AirfoilDataset(X_images[val_idx], X_aoa_normalized[val_idx], y_cl[val_idx])
 
-# Save the train dataset and val dataset image file names in two 
-# 
-# 
-# csv files
+# Save the train dataset and val dataset image file names in two csv files
 train_image_paths = df_filtered["image_path"].iloc[train_idx].drop_duplicates().tolist()
 val_image_paths = df_filtered["image_path"].iloc[val_idx].drop_duplicates().tolist()
 
@@ -211,10 +187,10 @@ def physics_loss(outputs, aoas):
 # --------------------
 # 4. Training Loop
 # --------------------
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=64)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=32)
 
-for epoch in range(1000):
+for epoch in range(20):
     model.train()
     train_loss = 0.0
     #for batch in tqdm(train_loader, desc=f"Epoch {epoch+1} Training"):
@@ -228,7 +204,7 @@ for epoch in range(1000):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.4 * p_loss  # Weighted physics loss
+            loss = data_loss + 0.1 * p_loss  # Weighted physics loss
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -267,7 +243,6 @@ def plot_predictions(model, dataloader, device, n_samples=5):
             aoa = batch["aoa"][0].item()
             true_cl = batch["cl"][0].item()
             pred_cl = model(batch["image"].to(device), batch["aoa"].to(device))[0].item()
-
             axes[i].imshow(img, cmap="gray")
             axes[i].set_title(f"AoA={aoa_scaler.inverse_transform([[aoa]])[0][0]:.1f}°\nTrue $C_L$={true_cl:.2f}\nPred $C_L$={pred_cl:.2f}")
             axes[i].axis("off")
