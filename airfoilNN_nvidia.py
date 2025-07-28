@@ -86,7 +86,7 @@ for path in unique_paths:
         print(f"{image_filename} does not exist, skipping...")
         continue
     
-    img = Image.open(full_image_path).convert('L').resize((200, 60))  # Resize to save memory
+    img = Image.open(full_image_path).convert('L').resize((100, 30))  # Resize to save memory
     path_to_img[path] = np.array(img)
     
     # Add indices for this path
@@ -204,7 +204,7 @@ print(f"Using device: {device}")  # Debug to confirm GPU
 image_height, image_width = X_images.shape[1], X_images.shape[2]
 model = AirfoilCNN(image_height, image_width).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.995)
 criterion = nn.MSELoss()
 scaler = amp.GradScaler()  # Mixed-precision training
 
@@ -221,10 +221,10 @@ def physics_loss(outputs, aoas):
 # --------------------
 # 4. Training Loop
 # --------------------
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32)
+train_loader = DataLoader(train_dataset, batch_size=768, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=768)
 
-for epoch in range(20):
+for epoch in range(1000):
     model.train()
     train_loss = 0.0
     train_data_loss = 0.0  # New: Track pure data MSE
@@ -239,7 +239,7 @@ for epoch in range(20):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.0 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
+            loss = data_loss + 0.1 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -262,9 +262,9 @@ for epoch in range(20):
             cls = batch["cl"].unsqueeze(1).to(device)
             outputs = model(images, aoas)
             val_loss += criterion(outputs, cls).item()
-    
+    torch.save(model.state_dict(), "airfoil_cnn.pth")
     print(f"Epoch {epoch+1}: Train Loss (Total) = {train_loss/len(train_loader):.4f}, Train MSE (Data Only) = {train_data_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
-torch.save(model.state_dict(), "airfoil_cnn.pth")
+
 # --------------------
 # 5. Visualization & Inference
 # --------------------
@@ -286,8 +286,8 @@ def plot_predictions(model, dataloader, device, n_samples=5):
     plt.tight_layout()
     plt.show()
 
-plot_predictions(model, val_loader, device)
 
+plot_predictions(model, val_loader, device)
 
 # Print scaler parameters for inference
 print("AoA scaler mean:", aoa_scaler.mean_)
