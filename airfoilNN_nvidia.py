@@ -204,7 +204,7 @@ print(f"Using device: {device}")  # Debug to confirm GPU
 image_height, image_width = X_images.shape[1], X_images.shape[2]
 model = AirfoilCNN(image_height, image_width).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.995)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.99)
 criterion = nn.MSELoss()
 scaler = amp.GradScaler()  # Mixed-precision training
 
@@ -239,7 +239,7 @@ for epoch in range(1000):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.2 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
+            loss = data_loss + 0.1 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)

@@ -10,10 +10,10 @@ val_image_paths = pd.read_csv("val_image_paths.csv")['image_path'].tolist()
 df = pd.read_csv("airfoil_data_clean.csv")
 
 # Filter the DataFrame to only validation image paths
-val_df = df[df['image_path'].isin(val_image_paths)].copy()
+val_df = df[df['file_path'].isin(val_image_paths)].copy()
 
 # Sort by image_path and aoa for consistency
-val_df = val_df.sort_values(['image_path', 'aoa']).reset_index(drop=True)
+val_df = val_df.sort_values(['file_path', 'aoa']).reset_index(drop=True)
 
 # Load the trained model (assume AirfoilCNN and device are defined elsewhere or import them)
 model = AirfoilCNN(image_height, image_width).to(device)
@@ -33,7 +33,7 @@ import numpy as np
 
 # Detect OS and set image path accordingly
 if os.name == 'nt':
-    images_file_path = r"C:\\Users\\Owner\\airfoil_images\\images"
+    images_file_path = r"C:\Users\Owner\airfoil_images\images"
 else:
     images_file_path = "images"
 
