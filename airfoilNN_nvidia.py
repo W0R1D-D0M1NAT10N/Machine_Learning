@@ -224,8 +224,9 @@ def physics_loss(outputs, aoas):
 # --------------------
 train_loader = DataLoader(train_dataset, batch_size=784, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=784)
+physics_guided = False
 
-for epoch in range(1000):
+for epoch in range(100):
     model.train()
     train_loss = 0.0
     train_data_loss = 0.0  # New: Track pure data MSE
@@ -239,8 +240,11 @@ for epoch in range(1000):
         with torch.autocast(device_type=device.type):  # Mixed precision
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
-            p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.1 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
+            if physics_guided:
+                p_loss = physics_loss(outputs, aoas)
+            else:
+                p_loss = 0.0
+            loss = data_loss + 0.01 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -266,6 +270,7 @@ for epoch in range(1000):
     torch.save(model.state_dict(), "airfoil_cnn.pth")
     print(f"Epoch {epoch+1}: Train Loss (Total) = {train_loss/len(train_loader):.4f}, Train MSE (Data Only) = {train_data_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
 
+
 # --------------------
 # 5. Visualization & Inference
 # --------------------
@@ -286,7 +291,6 @@ def plot_predictions(model, dataloader, device, n_samples=5):
             axes[i].axis("off")
     plt.tight_layout()
     plt.show()
-
 
 plot_predictions(model, val_loader, device)
 
