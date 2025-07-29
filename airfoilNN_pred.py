@@ -66,14 +66,18 @@ model = AirfoilCNN(image_height, image_width).to(device)
 model.load_state_dict(torch.load("airfoil_cnn.pth"))
 model.eval()
 
-# Prepare AoA normalization (assume aoa_scaler is available or reload its params)
-from sklearn.preprocessing import StandardScaler
-# If you saved aoa_scaler params, load them here. Otherwise, fit on the full CSV:
-aoa_scaler = StandardScaler()
-aoa_scaler.fit(df['aoa'].values.reshape(-1, 1))
+import joblib
+import os
+joblibfile = "aoa_scalar.joblib"
+if os.path.exists(joblibfile):
+    aoa_scaler = joblib.load("aoa_scaler.joblib")
+    print(f"The AoA scalar value: {aoa_scaler}")
+else:
+    from sklearn.preprocessing import StandardScaler
+    aoa_scaler = StandardScaler()
+    aoa_scaler.fit(df['aoa'].values.reshape(-1, 1))
 
 # Prepare image loading (assume images are in the same folder as training)
-import os
 from PIL import Image
 import numpy as np
 

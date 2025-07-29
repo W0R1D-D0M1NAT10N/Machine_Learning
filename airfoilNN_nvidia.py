@@ -274,8 +274,8 @@ for epoch in range(1000):
             outputs = model(images, aoas)
             val_loss += criterion(outputs, cls).item()
     
+    torch.save(model.state_dict(), "airfoil_cnn.pth")
     print(f"Epoch {epoch+1}: Train Loss = {train_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
-torch.save(model.state_dict(), "airfoil_cnn.pth")
 # --------------------
 # 5. Visualization & Inference
 # --------------------
@@ -299,7 +299,9 @@ def plot_predictions(model, dataloader, device, n_samples=5):
 
 plot_predictions(model, val_loader, device)
 
-
 # Print scaler parameters for inference
 print("AoA scaler mean:", aoa_scaler.mean_)
 print("AoA scaler scale:", aoa_scaler.scale_)
+
+import joblib
+joblib.dump(aoa_scalar, "aoa_scalar.joblib")
