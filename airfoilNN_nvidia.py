@@ -177,7 +177,7 @@ class AirfoilCNN(nn.Module):
         # Combined head
         self.head = nn.Sequential(
             nn.Linear(self.conv_output_size + 16, 64),
-            nn.Dropout(0.2),  # Enhancement: Regularization
+            nn.Dropout(0.3),  # Enhancement: Regularization
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
@@ -221,8 +221,8 @@ def physics_loss(outputs, aoas):
 # -------------------- 
 # 4. Training Loop
 # --------------------
-train_loader = DataLoader(train_dataset, batch_size=768, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=768)
+train_loader = DataLoader(train_dataset, batch_size=784, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=784)
 
 for epoch in range(1000):
     model.train()
@@ -239,7 +239,7 @@ for epoch in range(1000):
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
             p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.1 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
+            loss = data_loss + 0.2 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
