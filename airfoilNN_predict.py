@@ -67,10 +67,15 @@ model.load_state_dict(torch.load("airfoil_cnn.pth"))
 model.eval()
 
 # Prepare AoA normalization (assume aoa_scaler is available or reload its params)
+import joblib
+import os
 from sklearn.preprocessing import StandardScaler
 # If you saved aoa_scaler params, load them here. Otherwise, fit on the full CSV:
-aoa_scaler = StandardScaler()
-aoa_scaler.fit(df['aoa'].values.reshape(-1, 1))
+if os.path.exists("aoa_scaler.joblib"):
+    aoa_scaler = joblib.load("aoa_scaler.joblib")
+else:
+    aoa_scaler = StandardScaler()
+    aoa_scaler.fit(df['aoa'].values.reshape(-1, 1))
 
 # Prepare image loading (assume images are in the same folder as training)
 import os
@@ -111,3 +116,27 @@ for idx, row in val_df.iterrows():
 # Calculate the correlation coefficient
 correlation = r2_score(true_values, predicted_values)
 print(f"Correlation coefficient: {correlation:.4f}")
+
+# Save results to CSV
+results_df = pd.DataFrame({
+    'airfoil_name': [row['image_path'] for _, row in val_df.iterrows() if os.path.exists(os.path.join(images_file_path, row['image_path'].replace('.dat', '.png')))],
+    'AoA': [row['aoa'] for _, row in val_df.iterrows() if os.path.exists(os.path.join(images_file_path, row['image_path'].replace('.dat', '.png')))],
+    'true_values': true_values,
+    'pred_values': predicted_values
+})
+results_df.to_csv('airfoil_predictions_vs_true.csv', index=False)
+print('Saved predictions to airfoil_predictions_vs_true.csv')
+
+# Scatter plot
+import matplotlib.pyplot as plt
+plt.figure(figsize=(6,6))
+plt.scatter(true_values, predicted_values, alpha=0.5)
+plt.xlabel('True $C_L$')
+plt.ylabel('Predicted $C_L$')
+plt.title('True vs Predicted $C_L$')
+plt.plot([min(true_values), max(true_values)], [min(true_values), max(true_values)], 'r--', label='Ideal')
+plt.legend()
+plt.tight_layout()
+plt.savefig('airfoil_true_vs_pred_scatter.png')
+plt.show()
+print('Scatter plot saved as airfoil_true_vs_pred_scatter.png')

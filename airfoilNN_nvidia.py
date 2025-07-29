@@ -45,9 +45,10 @@ torch.backends.cudnn.benchmark = False
 
 # Load training data
 
-csv_path = r"C:\Users\Owner\Machine_Learning\airfoil_data_clean.csv"
-#else:  # Linux/Mac
-#    csv_path = r"airfoil_data_clean.csv"
+if os.name == 'nt':
+    csv_path = r"C:\Users\Owner\Machine_Learning\airfoil_data_clean.csv"
+else:  # Linux/Mac
+    csv_path = r"airfoil_data_clean.csv"
 df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0
 
 # Rename 'file_path' to 'image_path' for consistency
@@ -292,3 +293,6 @@ plot_predictions(model, val_loader, device)
 # Print scaler parameters for inference
 print("AoA scaler mean:", aoa_scaler.mean_)
 print("AoA scaler scale:", aoa_scaler.scale_)
+
+import joblib
+joblib.dump(aoa_scaler, "aoa_scaler.joblib")
