@@ -16,6 +16,12 @@ import sys  # For memory debug
 from tqdm import tqdm  # For progress bars
 import random
 
+# Global variables
+nEpoch = 1000
+nWorkers = 32
+nBatch   = 32
+physcis_guided = False
+
 # --------------------
 # 1. Data Preparation
 # --------------------
@@ -48,6 +54,7 @@ if os.name == 'nt':  # Windows
     csv_path = r"C:\Users\Owner\airfoil_data_clean.csv"
 else:  # Linux/Mac
     csv_path = r"airfoil_data_clean.csv"
+
 df = pd.read_csv(csv_path, sep=',')  # Defaults to header=0
 
 # Rename 'file_path' to 'image_path' for consistency
@@ -140,10 +147,7 @@ train_idx, val_idx = next(gkf.split(X_images_filtered, Y_cl_filtered, groups_fil
 train_dataset = AirfoilDataset(X_images_filtered[train_idx], X_aoa_normalized_filtered[train_idx], Y_cl_filtered[train_idx])
 val_dataset = AirfoilDataset(X_images_filtered[val_idx], X_aoa_normalized_filtered[val_idx], Y_cl_filtered[val_idx])
 
-# Save the train dataset and val dataset image file names in two 
-# 
-# 
-# csv files
+# Save the train dataset and val dataset image file names in two csv files
 train_image_paths = df_filtered["image_path"].iloc[train_idx].drop_duplicates().tolist()
 val_image_paths = df_filtered["image_path"].iloc[val_idx].drop_duplicates().tolist()
 
@@ -158,7 +162,6 @@ train_df = pd.DataFrame({"image_path": train_image_paths})
 val_df = pd.DataFrame({"image_path": val_image_paths})
 train_df.to_csv("train_image_paths.csv", index=False)
 val_df.to_csv("val_image_paths.csv", index=False)
-
 
 # --------------------
 # 2. Model Architecture
@@ -234,8 +237,9 @@ def physics_loss(outputs, aoas):
 # --------------------
 # 4. Training Loop
 # --------------------
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32)
+
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=32, pin_memory=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=32, pin_memory=True)
 
 for epoch in range(1000):
     model.train()
@@ -250,9 +254,13 @@ for epoch in range(1000):
         with torch.autocast(device_type=device.type):  # Mixed precision
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
-            p_loss = physics_loss(outputs, aoas)
-            loss = data_loss + 0.1 * p_loss  # Weighted physics loss
-        
+            loss = data_loss + 0.1 * p_loss
+            if physics_guided:
+                p_loss = physics_loss(outputs, aoas)
+            else:
+                p_loss = 0.0
+            loss = data_loss + 0.01 * p_loss  # Set to 0.0 to match pure MSE; adjust if needed
+
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -275,7 +283,9 @@ for epoch in range(1000):
             val_loss += criterion(outputs, cls).item()
     
     torch.save(model.state_dict(), "airfoil_cnn.pth")
+
     print(f"Epoch {epoch+1}: Train Loss = {train_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
+
 # --------------------
 # 5. Visualization & Inference
 # --------------------
