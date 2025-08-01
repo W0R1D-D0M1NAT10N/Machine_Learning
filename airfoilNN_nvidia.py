@@ -17,10 +17,10 @@ from tqdm import tqdm  # For progress bars
 import random
 
 # Global variables
-nEpoch = 1000
-nWorkers = 32
+nEpoch = 100
+nWorkers = 8
 nBatch   = 32
-physcis_guided = False
+physics_guided = False
 
 # --------------------
 # 1. Data Preparation
@@ -254,7 +254,6 @@ for epoch in range(1000):
         with torch.autocast(device_type=device.type):  # Mixed precision
             outputs = model(images, aoas)
             data_loss = criterion(outputs, cls)
-            loss = data_loss + 0.1 * p_loss
             if physics_guided:
                 p_loss = physics_loss(outputs, aoas)
             else:
