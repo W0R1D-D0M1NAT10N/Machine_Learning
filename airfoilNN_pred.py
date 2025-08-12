@@ -68,14 +68,16 @@ model.eval()
 
 import joblib
 import os
-joblibfile = "aoa_scalar.joblib"
+joblibfile = "aoa_scaler.joblib"
 if os.path.exists(joblibfile):
     aoa_scaler = joblib.load("aoa_scaler.joblib")
-    print(f"The AoA scalar value: {aoa_scaler}")
+    print(f"The AoA scalar value: {aoa_scaler.scale_[0]}")
 else:
     from sklearn.preprocessing import StandardScaler
     aoa_scaler = StandardScaler()
     aoa_scaler.fit(df['aoa'].values.reshape(-1, 1))
+    aoa_scaler.mean_ = np.array([5.88033051])
+    aoa_scaler.scale_ = np.array([3.52893337])  # Replace with your actual scale from training
 
 # Prepare image loading (assume images are in the same folder as training)
 from PIL import Image

@@ -1,0 +1,5 @@
+3DModel/*.stl
+3DModel/*.obj
+3DModel/*.mtl
+3DModel/__pycache__
+3DModel/data

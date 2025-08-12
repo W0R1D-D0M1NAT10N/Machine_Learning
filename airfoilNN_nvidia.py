@@ -313,4 +313,4 @@ print("AoA scaler mean:", aoa_scaler.mean_)
 print("AoA scaler scale:", aoa_scaler.scale_)
 
 import joblib
-joblib.dump(aoa_scalar, "aoa_scalar.joblib")
+joblib.dump(aoa_scaler, "aoa_scaler.joblib")
