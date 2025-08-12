@@ -143,7 +143,7 @@ class LiftCoefficientPredictor:
 
 def main():
     """
-    Example usage of the predictor
+    Predict lift coefficients for all OBJ files in models folder
     """
     # Initialize predictor
     predictor = LiftCoefficientPredictor(
@@ -151,66 +151,156 @@ def main():
         num_points=1024
     )
     
-    # Example 1: Single predictions
-    print("=== Single Predictions ===")
-    obj_files = [
-        'data/aircraft1.obj',
-        'data/aircraft2.obj',
-        'data/aircraft3.obj'
-    ]
-    aoas = [5.0, 10.0, 15.0]  # degrees
+    # Define models folder and AoA range
+    models_folder = 'models'
+    aoa_range = list(range(0, 16))  # 0 to 15 degrees
     
-    for obj_file, aoa in zip(obj_files, aoas):
-        if os.path.exists(obj_file):
-            cl = predictor.predict_single(obj_file, aoa)
+    print(f"Scanning for OBJ files in '{models_folder}' folder...")
+    
+    # Check if models folder exists
+    if not os.path.exists(models_folder):
+        print(f"ERROR: '{models_folder}' folder not found!")
+        print("Please create the 'models' folder and place your OBJ files there.")
+        return
+    
+    # Find all OBJ files in models folder
+    obj_files = []
+    for file in os.listdir(models_folder):
+        if file.lower().endswith('.obj'):
+            obj_files.append(os.path.join(models_folder, file))
+    
+    if not obj_files:
+        print(f"No OBJ files found in '{models_folder}' folder!")
+        return
+    
+    print(f"Found {len(obj_files)} OBJ file(s):")
+    for obj_file in obj_files:
+        print(f"  - {os.path.basename(obj_file)}")
+    
+    print(f"\nPredicting lift coefficients for AoA range: {aoa_range[0]}° to {aoa_range[-1]}°")
+    print("=" * 80)
+    
+    # Process each OBJ file
+    all_results = {}
+    
+    for obj_file in obj_files:
+        model_name = os.path.basename(obj_file)
+        print(f"\nProcessing: {model_name}")
+        print("-" * 40)
+        
+        # Predict lift coefficients for AoA range
+        cl_values = predictor.predict_multiple_aoa(obj_file, aoa_range)
+        
+        # Store results
+        all_results[model_name] = {
+            'aoa': aoa_range.copy(),
+            'cl': cl_values.copy()
+        }
+        
+        # Display results for this model
+        print("AoA (°) | Lift Coefficient")
+        print("-" * 25)
+        for aoa, cl in zip(aoa_range, cl_values):
             if cl is not None:
-                print(f"{obj_file} at {aoa}° AoA: CL = {cl:.4f}")
-        else:
-            print(f"File not found: {obj_file}")
+                print(f"{aoa:6d} | {cl:12.4f}")
+            else:
+                print(f"{aoa:6d} | {'ERROR':>12}")
     
-    # Example 2: Batch prediction
-    print("\n=== Batch Predictions ===")
-    if all(os.path.exists(f) for f in obj_files):
-        cl_values = predictor.predict_batch(obj_files, aoas)
-        for obj_file, aoa, cl in zip(obj_files, aoas, cl_values):
-            if cl is not None:
-                print(f"{obj_file} at {aoa}° AoA: CL = {cl:.4f}")
-    
-    # Example 3: Multiple AoA for single aircraft
-    print("\n=== Multiple AoA for Single Aircraft ===")
-    single_aircraft = 'data/aircraft1.obj'
-    aoa_sweep = [0, 2, 4, 6, 8, 10, 12, 15, 18, 20]  # degrees
-    
-    if os.path.exists(single_aircraft):
-        cl_sweep = predictor.predict_multiple_aoa(single_aircraft, aoa_sweep)
-        print(f"Lift curve for {single_aircraft}:")
-        for aoa, cl in zip(aoa_sweep, cl_sweep):
-            if cl is not None:
-                print(f"  AoA {aoa:2d}°: CL = {cl:.4f}")
-    
-    # Example 4: Create lift curve data
-    print("\n=== Creating Lift Curve Data ===")
-    if os.path.exists(single_aircraft):
+    # Create summary plots if matplotlib is available
+    try:
         import matplotlib.pyplot as plt
         
-        valid_aoas = []
-        valid_cls = []
+        print(f"\n{'='*80}")
+        print("CREATING LIFT CURVE PLOTS")
+        print(f"{'='*80}")
         
-        for aoa, cl in zip(aoa_sweep, cl_sweep):
-            if cl is not None:
-                valid_aoas.append(aoa)
-                valid_cls.append(cl)
+        # Create individual plots for each model
+        for model_name, data in all_results.items():
+            valid_aoas = []
+            valid_cls = []
+            
+            for aoa, cl in zip(data['aoa'], data['cl']):
+                if cl is not None:
+                    valid_aoas.append(aoa)
+                    valid_cls.append(cl)
+            
+            if valid_aoas:
+                plt.figure(figsize=(10, 6))
+                plt.plot(valid_aoas, valid_cls, 'bo-', linewidth=2, markersize=6)
+                plt.xlabel('Angle of Attack (degrees)', fontsize=12)
+                plt.ylabel('Lift Coefficient (CL)', fontsize=12)
+                plt.title(f'Lift Curve for {model_name}', fontsize=14)
+                plt.grid(True, alpha=0.3)
+                plt.xlim(0, 15)
+                
+                # Save plot
+                plot_filename = f"lift_curve_{model_name.replace('.obj', '')}.png"
+                plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
+                plt.close()
+                print(f"Individual plot saved: {plot_filename}")
         
-        if valid_aoas:
-            plt.figure(figsize=(10, 6))
-            plt.plot(valid_aoas, valid_cls, 'bo-', linewidth=2, markersize=6)
-            plt.xlabel('Angle of Attack (degrees)')
-            plt.ylabel('Lift Coefficient (CL)')
-            plt.title(f'Lift Curve for {os.path.basename(single_aircraft)}')
+        # Create comparison plot with all models
+        if len(all_results) > 1:
+            plt.figure(figsize=(12, 8))
+            colors = ['b', 'r', 'g', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
+            
+            for i, (model_name, data) in enumerate(all_results.items()):
+                valid_aoas = []
+                valid_cls = []
+                
+                for aoa, cl in zip(data['aoa'], data['cl']):
+                    if cl is not None:
+                        valid_aoas.append(aoa)
+                        valid_cls.append(cl)
+                
+                if valid_aoas:
+                    color = colors[i % len(colors)]
+                    plt.plot(valid_aoas, valid_cls, f'{color}o-', 
+                            linewidth=2, markersize=5, 
+                            label=model_name.replace('.obj', ''))
+            
+            plt.xlabel('Angle of Attack (degrees)', fontsize=12)
+            plt.ylabel('Lift Coefficient (CL)', fontsize=12)
+            plt.title('Lift Curve Comparison - All Models', fontsize=14)
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
             plt.grid(True, alpha=0.3)
-            plt.savefig('lift_curve.png', dpi=300, bbox_inches='tight')
-            plt.show()
-            print("Lift curve saved as 'lift_curve.png'")
+            plt.xlim(0, 15)
+            plt.tight_layout()
+            
+            comparison_plot = "lift_curve_comparison.png"
+            plt.savefig(comparison_plot, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"Comparison plot saved: {comparison_plot}")
+        
+    except ImportError:
+        print("\nMatplotlib not available - skipping plot generation")
+    
+    # Save results to CSV
+    try:
+        import pandas as pd
+        
+        # Create DataFrame for all results
+        csv_data = []
+        for model_name, data in all_results.items():
+            for aoa, cl in zip(data['aoa'], data['cl']):
+                csv_data.append({
+                    'Model': model_name.replace('.obj', ''),
+                    'AoA_degrees': aoa,
+                    'Lift_Coefficient': cl
+                })
+        
+        df = pd.DataFrame(csv_data)
+        csv_filename = "lift_predictions.csv"
+        df.to_csv(csv_filename, index=False)
+        print(f"\nResults saved to: {csv_filename}")
+        
+    except ImportError:
+        print("\nPandas not available - skipping CSV export")
+    
+    print(f"\n{'='*80}")
+    print("PREDICTION COMPLETE!")
+    print(f"Processed {len(obj_files)} model(s) with {len(aoa_range)} AoA values each")
+    print(f"{'='*80}")
 
 
 if __name__ == "__main__":
