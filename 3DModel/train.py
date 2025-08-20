@@ -5,6 +5,9 @@ from model import PointNetLiftRegressor
 from flightpod_dataset import FlightPodMeshDataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
 
 # Load dataset
 dataset = FlightPodMeshDataset(

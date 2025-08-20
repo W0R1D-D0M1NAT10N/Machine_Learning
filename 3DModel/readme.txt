@@ -6,3 +6,5 @@
 3. predict.py predicts with the 3D NN
 
 4. flight_data.csv contains all the data needed to train the 3D net
+
+5. transpose.py transposes the flight_data.csv (suitable for model training) to transposed csv format (suitable for graphing)

@@ -153,7 +153,7 @@ def main():
     
     # Define models folder and AoA range
     models_folder = 'models'
-    aoa_range = list(range(0, 16))  # 0 to 15 degrees
+    aoa_range = list(range(0, 10))  # 0 to 10 degrees
     
     print(f"Scanning for OBJ files in '{models_folder}' folder...")
     
