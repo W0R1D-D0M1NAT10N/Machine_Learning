@@ -5,7 +5,7 @@ import torch.nn.functional as F
 # Use a point net architecture
 # Input point cloud is 3 dimensional, default hidden layer dimension is 64
 class PointNetLiftRegressor(nn.Module):
-    def __init__(self, input_dim=3, hidden_dim=64):
+    def __init__(self, input_dim=3, hidden_dim=256):
         super().__init__()
         # Multi-layer perceptron 3x64x64
         self.point_mlp = nn.Sequential(
