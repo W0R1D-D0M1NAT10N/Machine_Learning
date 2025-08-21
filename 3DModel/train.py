@@ -4,8 +4,15 @@ from torch.utils.data import DataLoader
 from model import PointNetLiftRegressor
 from flightpod_dataset import FlightPodMeshDataset
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    print("Using device GPU:", torch.cuda.get_device_name(0))
+else:
+    device = torch.device("cpu")
+    print("Using device CPU")
+
+#print(f"Using device: {device}")
 if torch.cuda.is_available():
     torch.cuda.empty_cache()
 
