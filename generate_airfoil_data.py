@@ -11,8 +11,8 @@ logs_dir = r'C:\Users\alexa\Downloads\polar_logs'
 os.makedirs(polars_dir, exist_ok=True)
 os.makedirs(logs_dir, exist_ok=True)
 
-re = 1e6 
-mach = 0.1
+re = 6e6
+mach = 0.265
 
 # Checkpoint setup
 checkpoint_file = 'airfoil_processing_log.csv'
@@ -45,7 +45,7 @@ def run_xfoil_worker(args):
         'VPAR',
         'N 9.0',  # Ncrit=9 for better transition at Re=1e6
         '',
-        'ITER 2000',  # Higher for tough cases
+        'ITER 5000',  # Higher for tough cases
         'VACC 0.00001',
         f'VISC {re}',
         f'MACH {mach}',
