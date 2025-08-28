@@ -192,12 +192,12 @@ class AirfoilCNN(nn.Module):
         
         # Combined head
         self.head = nn.Sequential(
-            nn.Linear(self.conv_output_size + 16, 64),
+            nn.Linear(self.conv_output_size + 16, 1024),
             nn.Dropout(0.2),  # Enhancement: Regularization
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(1024, 256),
             nn.ReLU(),
-            nn.Linear(32, 1)
+            nn.Linear(256, 1)
         )
     
     def _get_conv_output_size(self, h, w):
