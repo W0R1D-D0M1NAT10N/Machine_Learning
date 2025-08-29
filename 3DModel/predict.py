@@ -255,7 +255,7 @@ def main():
                 
                 if valid_aoas:
                     color = colors[i % len(colors)]
-                    plt.plot(valid_aoas, valid_cls, f'{color}o-', 
+                    plt.plot(valid_aoas, valid_cls, 'o-', color=color,
                             linewidth=2, markersize=5, 
                             label=model_name.replace('.obj', ''))
             

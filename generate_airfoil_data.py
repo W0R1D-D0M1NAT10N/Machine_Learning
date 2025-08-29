@@ -5,14 +5,14 @@ from tqdm import tqdm
 import multiprocessing  # For parallel processing
 
 # Directories
-airfoils_dir = 'C:\\Users\\alexa\\Downloads\\coord_seligFmt\\coord_seligFmt'
-polars_dir = r'C:\Users\alexa\Downloads\polar'
-logs_dir = r'C:\Users\alexa\Downloads\polar_logs'
+airfoils_dir = r"airfoils/"
+polars_dir = r'polar/'
+logs_dir = r'polar_logs/'
 os.makedirs(polars_dir, exist_ok=True)
 os.makedirs(logs_dir, exist_ok=True)
 
 re = 6e6
-mach = 0.265
+mach = 0.262
 
 # Checkpoint setup
 checkpoint_file = 'airfoil_processing_log.csv'
@@ -35,10 +35,8 @@ def run_xfoil_worker(args):
     stride = 0.25
     
     commands = [
-        'PLOP',
-        'G F',
-        '',
         f'LOAD {dat_path}',
+        f'{foilname}',
         'PANE',
         'INIT',  # Re-init for convergence
         'OPER',

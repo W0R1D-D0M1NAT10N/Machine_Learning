@@ -25,10 +25,10 @@ def run_xfoil_analysis(dat_path, foilname):
     
     # Analysis parameters
     re = 6e6
-    mach = 0.265
+    mach = 0.262
     aoa_start = 0.0
     aoa_end = 12.0
-    stride = 0.25
+    stride = 1
     
     # Create temporary file for polar data
     with tempfile.NamedTemporaryFile(mode='w', suffix='.pol', delete=True) as tmp_file:
