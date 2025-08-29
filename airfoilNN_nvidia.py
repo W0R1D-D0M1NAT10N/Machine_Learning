@@ -16,6 +16,12 @@ import sys  # For memory debug
 from tqdm import tqdm  # For progress bars
 import random
 
+# Global variables
+nEpoch = 100
+nWorkers = 8
+nBatch   = 32
+physics_guided = False
+
 # --------------------
 # 1. Data Preparation
 # --------------------
@@ -299,5 +305,4 @@ print("AoA scaler mean:", aoa_scaler.mean_)
 print("AoA scaler scale:", aoa_scaler.scale_)
 
 import joblib
-joblib.dump(aoa_scaler, "aoa_scaler.joblib")
-
+joblib.dump(aoa_scalar, "aoa_scalar.joblib")
