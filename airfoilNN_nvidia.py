@@ -16,6 +16,8 @@ import sys  # For memory debug
 from tqdm import tqdm  # For progress bars
 import random
 
+from airfoil_cnn_model import AirfoilCNN
+
 # Global variables
 nEpoch = 100
 nWorkers = 8
@@ -74,7 +76,7 @@ df = df.reset_index(drop=True)  # Reset index to avoid out-of-bounds errors
 if os.name == 'nt':  # Windows
     images_file_path = r"C:\Users\Owner\airfoil_images\images"
 else:  # Linux/Mac
-    images_file_path = "images"
+    images_file_path = "resized_images"
 
 # Load and map unique images
 unique_paths = df["image_path"].unique()
@@ -93,7 +95,7 @@ for path in unique_paths:
         print(f"{image_filename} does not exist, skipping...")
         continue
     
-    img = Image.open(full_image_path).convert('L').resize((100, 30))  # Resize to save memory
+    img = Image.open(full_image_path).convert('L').resize((200, 60))  # Resize to save memory
     path_to_img[path] = np.array(img)
     
     # Add indices for this path
@@ -157,51 +159,7 @@ val_df.to_csv("val_image_paths.csv", index=False)
 # --------------------
 # 2. Model Architecture
 # --------------------
-class AirfoilCNN(nn.Module):
-    def __init__(self, input_height, input_width):
-        super().__init__()
-        # Image branch
-        self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),  # Enhancement: Stabilize training
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Flatten()
-        )
-        
-        self.conv_output_size = self._get_conv_output_size(input_height, input_width)
-
-        # AoA branch
-        self.aoa_fc = nn.Sequential(
-            nn.Linear(1, 16),
-            nn.ReLU()
-        )
-        
-        # Combined head
-        self.head = nn.Sequential(
-            nn.Linear(self.conv_output_size + 16, 512),
-            nn.Dropout(0.2),  # Enhancement: Regularization
-            nn.ReLU(),
-            nn.Linear(512, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1)
-        )
-    
-    def _get_conv_output_size(self, h, w):
-        with torch.no_grad():
-            dummy_input = torch.zeros(1,1,h,w)
-            output = self.conv_layers(dummy_input)
-            return output.shape[1]
-
-    def forward(self, x_img, x_aoa):
-        img_features = self.conv_layers(x_img)
-        aoa_features = self.aoa_fc(x_aoa)
-        combined = torch.cat([img_features, aoa_features], dim=1)
-        return self.head(combined)
+# defined in airfoil_cnn_model
 
 # --------------------
 # 3. Training Setup
@@ -228,11 +186,10 @@ def physics_loss(outputs, aoas):
 # -------------------- 
 # 4. Training Loop
 # --------------------
-train_loader = DataLoader(train_dataset, batch_size=784, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=784)
-physics_guided = False
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=32, pin_memory=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=32, pin_memory=True)
 
-for epoch in range(100):
+for epoch in range(nEpoch):
     model.train()
     train_loss = 0.0
     train_data_loss = 0.0  # New: Track pure data MSE
