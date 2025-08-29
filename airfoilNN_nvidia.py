@@ -267,9 +267,10 @@ for epoch in range(100):
             cls = batch["cl"].unsqueeze(1).to(device)
             outputs = model(images, aoas)
             val_loss += criterion(outputs, cls).item()
-
     torch.save(model.state_dict(), "airfoil_cnn.pth")
     print(f"Epoch {epoch+1}: Train Loss (Total) = {train_loss/len(train_loader):.4f}, Train MSE (Data Only) = {train_data_loss/len(train_loader):.4f}, Val Loss = {val_loss/len(val_loader):.4f}")
+
+
 # --------------------
 # 5. Visualization & Inference
 # --------------------
@@ -299,3 +300,4 @@ print("AoA scaler scale:", aoa_scaler.scale_)
 
 import joblib
 joblib.dump(aoa_scaler, "aoa_scaler.joblib")
+
